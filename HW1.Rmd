@@ -1,0 +1,119 @@
+---
+title: "HW1_2020190038_Hyeonji Kim"
+output: html_document
+date: "2023-03-22"
+---
+```{r}
+case <- read.csv("C:/Users/naodr/Downloads/case.csv")
+```
+
+
+# n= 649, Today = response variable, Month = dummy
+```{r}
+head(case$Month)
+
+month <- as.data.frame(model.matrix(~case$Month - 1))
+head(month)
+```
+
+```{r}
+#1-(a)
+library("fastDummies")
+result <- fastDummies::dummy_cols(case, select_columns = "Month", remove_first_dummy = TRUE)
+knitr::kable(result)
+
+dim(result)
+head(result)
+
+#data without month
+dummy_data <- result[, -c(4)]
+head(dummy_data)
+
+#data only for dummy months
+month_dummy <- dummy_data[, -c(1:3)]
+head(month_dummy)
+dim(month_dummy)
+```
+
+
+```{r}
+#1-(b)
+design_matrix <-model.matrix(Today ~ Yesterday + Month_2 + Month_3 + Month_4 + Month_5 + Month_6 + Month_7 + Month_8 + Month_9 + Month_10 + Month_11 + Month_12, data= dummy_data)
+head(design_matrix)
+dim(design_matrix)
+```
+
+
+```{r}
+#1-(c)
+X = as.matrix(cbind(1, dummy_data$Yesterday,month_dummy))
+X
+
+head(X)
+Y = dummy_data$Today
+Y
+
+beta.hat <- solve(t(X)%*%X)%*%t(X)%*%Y
+beta.hat
+```
+
+
+```{r}
+#1-(d)
+linear <- lm(Today ~ Yesterday + Month_2 + Month_3 + Month_4 + Month_5 + Month_6 + Month_7 + Month_8 + Month_9 + Month_10 + Month_11 + Month_12, data= dummy_data)
+summary(linear)
+coef(linear)
+
+#or,
+
+lm(Today ~ Yesterday + as.factor(Month), data = result)
+```
+
+
+
+```{r}
+#2-(a)
+# Divide the data into training(447 samples) and test(192 samples) sets
+alldata=data.frame(cbind(Y,X))
+head(alldata)
+train=alldata[1:447,]
+test=alldata[448:639 , ]
+
+# Fit a poisson regression using a training set
+fit.poi <- glm(Y~., family = "poisson", data = train) 
+summary(fit.poi)
+
+# Find significant values
+#Significant values are the one who has low p-values, which are Yesterday, February, March, May, June, July, September, October, November and December.
+
+# Interpretation of regression coefficients beta for all significant covariates
+coef(fit.poi)
+#With the 1 unit increase in Yesterday, it causes 0.002627896 increase in our y value, which is Today.
+#With the 1 unit increase in February, it causes 0.260517323 increase in our y value, which is Today.
+#With the 1 unit increase in March, it causes 0.167079982 increase in our y value, which is Today.
+#With the 1 unit increase in May, it causes 0.065439859 decrease in our y value, which is Today.
+#With the 1 unit increase in June, it causes 0.974444906 decrease in our y value, which is Today.
+#With the 1 unit increase in July, it causes 0.897248560 decrease in our y value, which is Today.
+#With the 1 unit increase in September, it causes 0.154140650 decrease in our y value, which is Today.
+#With the 1 unit increase in October, it causes 0.414077716 decrease in our y value, which is Today.
+#With the 1 unit increase in November, it causes 0.171723863 increase in our y value, which is Today.
+#With the 1 unit increase in December, it causes 0.270135559 decrease in our y value, which is Today.
+```
+
+
+```{r}
+#2-(b)
+#response for test data sets
+install.packages("stats")
+library("stats")
+
+ypred = predict(fit.poi)
+fit.poi2 <- glm(Y~., family = "poisson", data = test) 
+ytest = predict(fit.poi2)
+ytest
+
+
+#rmse for test data sets
+sqrt(mean((ypred[1:192] - ytest)^2))
+#Therefore, rmse is 2.824316
+```
